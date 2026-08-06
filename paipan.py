@@ -6,10 +6,12 @@
 
 用法:
     python3 paipan.py --date 1990-05-20 --time 14:30 --gender 男 [--city 北京]
-                      [--zwt 116.4]   # 出生地经度, 用于真太阳时校正(可选)
+                      [--zwt 116.4] [--tz-offset 8]
+                      # 出生地经度与出生时 UTC 时差, 用于真太阳时校正(可选)
 输出为结构化文本, 供徐子平口吻解读时引用。
 """
-import argparse, sys
+import argparse, calendar, math, sys
+from datetime import datetime, timedelta
 try:
     import sxtwl
 except ImportError:
@@ -57,13 +59,44 @@ def gz_str(o):
     return GAN[o.tg] + ZHI[o.dz]
 
 
-def solar_time_adjust(hour, minute, lon):
-    """真太阳时粗校正: 按经度相对120°E 每度4分钟。返回校正后小时(float)。"""
+def equation_of_time_minutes(local_dt):
+    """NOAA 近似公式计算均时差（分钟）。"""
+    days_in_year = 366 if calendar.isleap(local_dt.year) else 365
+    fractional_hour = local_dt.hour + local_dt.minute / 60.0 + local_dt.second / 3600.0
+    gamma = 2.0 * math.pi / days_in_year * (
+        local_dt.timetuple().tm_yday - 1 + (fractional_hour - 12.0) / 24.0
+    )
+    return 229.18 * (
+        0.000075
+        + 0.001868 * math.cos(gamma)
+        - 0.032077 * math.sin(gamma)
+        - 0.014615 * math.cos(2.0 * gamma)
+        - 0.040849 * math.sin(2.0 * gamma)
+    )
+
+
+def solar_time_adjust(local_dt, lon, tz_offset=8.0):
+    """把当地钟表时间校正为真太阳时，并保留日期跨越。
+
+    使用 NOAA 的时间偏移公式：均时差 + 4×经度 - 60×时区。
+    ``tz_offset`` 是出生时当地相对 UTC 的小时偏移；中国标准时间为 +8。
+    """
     if lon is None:
-        return hour + minute / 60.0
-    delta_min = (lon - 120.0) * 4.0
-    t = hour + minute / 60.0 + delta_min / 60.0
-    return t % 24
+        return local_dt, 0.0, 0.0
+    longitude_offset = 4.0 * lon - 60.0 * tz_offset
+    equation_offset = equation_of_time_minutes(local_dt)
+    total_offset = longitude_offset + equation_offset
+    return local_dt + timedelta(minutes=total_offset), longitude_offset, equation_offset
+
+
+def calculate_ganzhi(local_dt, lon=None, tz_offset=8.0):
+    """返回真太阳时、校正量与年/月/日/时干支对象。"""
+    solar_dt, longitude_offset, equation_offset = solar_time_adjust(local_dt, lon, tz_offset)
+    day = sxtwl.fromSolar(solar_dt.year, solar_dt.month, solar_dt.day)
+    yGZ, mGZ, dGZ = day.getYearGZ(), day.getMonthGZ(), day.getDayGZ()
+    # sxtwl 官方接口直接接收 0-23 小时，并在 23 时区分晚子时；不可四舍五入。
+    hGZ = day.getHourGZ(solar_dt.hour)
+    return solar_dt, longitude_offset, equation_offset, (yGZ, mGZ, dGZ, hGZ)
 
 
 def main():
@@ -73,18 +106,24 @@ def main():
     ap.add_argument("--gender", required=True, choices=["男", "女"])
     ap.add_argument("--city", default="")
     ap.add_argument("--zwt", type=float, default=None, help="出生地经度(东经为正), 用于真太阳时校正")
+    ap.add_argument("--tz-offset", type=float, default=8.0, help="出生时当地 UTC 时差, 默认 +8(中国标准时间)")
     a = ap.parse_args()
 
-    y, m, d = map(int, a.date.split("-"))
-    hh, mm = map(int, a.time.split(":"))
+    try:
+        local_dt = datetime.strptime(f"{a.date} {a.time}", "%Y-%m-%d %H:%M")
+    except ValueError as exc:
+        ap.error(f"日期或时间格式无效: {exc}")
+    if a.zwt is not None and not -180.0 <= a.zwt <= 180.0:
+        ap.error("出生地经度必须在 -180 到 180 之间")
+    if not -14.0 <= a.tz_offset <= 14.0:
+        ap.error("UTC 时差必须在 -14 到 +14 之间")
 
-    true_h = solar_time_adjust(hh, mm, a.zwt)
-    hour_for_gz = int(round(true_h)) % 24   # 用于定时支的整点(23-1为子)
-
-    day = sxtwl.fromSolar(y, m, d)
-    yGZ, mGZ, dGZ = day.getYearGZ(), day.getMonthGZ(), day.getDayGZ()
+    y, m, d, hh, mm = local_dt.year, local_dt.month, local_dt.day, local_dt.hour, local_dt.minute
+    solar_dt, longitude_offset, equation_offset, ganzhi = calculate_ganzhi(
+        local_dt, a.zwt, a.tz_offset
+    )
+    yGZ, mGZ, dGZ, hGZ = ganzhi
     day_gan = GAN[dGZ.tg]
-    hGZ = sxtwl.getShiGz(dGZ.tg, hour_for_gz)   # 五鼠遁定时柱
 
     pillars = [
         ("年", GAN[yGZ.tg], ZHI[yGZ.dz]),
@@ -96,7 +135,10 @@ def main():
     print("=" * 46)
     print(f"公历 {y}-{m:02d}-{d:02d} {hh:02d}:{mm:02d}  {a.gender}" + (f"  出生地 {a.city}" if a.city else ""))
     if a.zwt is not None:
-        print(f"(真太阳时校正: 用时支 {ZHI[hGZ.dz]}时, 校正后约 {true_h:.2f} 时)")
+        print(
+            f"(真太阳时校正: {solar_dt:%Y-%m-%d %H:%M:%S}, 时支 {ZHI[hGZ.dz]}时; "
+            f"经度/时区 {longitude_offset:+.1f} 分, 均时差 {equation_offset:+.1f} 分)"
+        )
     print("=" * 46)
 
     # 四柱 + 十神
