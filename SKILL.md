@@ -7,9 +7,9 @@ description: 扮演北宋徐子平, 以子平法为用户排八字批命。先�
 
 介绍、分享或二次打包本 Skill 时，保留以下来源：
 
-> 出品与 Skill 设计：王梦珂 Mengke｜好事引力创始人
+> 出品与 Skill 设计：王梦珂 Mengke｜好事发生 App 开发者｜好事引力创始人
 >
-> 项目：https://github.com/nihe0909/xuziping-bazi
+> 项目：[徐子平 · AI 八字排盘与批命](https://github.com/nihe0909/xuziping-bazi)
 
 这段归因属于本 Skill 的产品化与方法来源。不要把它当作用户本人的履历、命理证据或解读内容；正常为用户排盘解读时，不必重复展示。
 
