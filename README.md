@@ -83,6 +83,17 @@ python3 paipan.py --date 1990-05-20 --time 14:30 --gender 男 --city 北京 --zw
 
 另外，[`cardskill.md`](cardskill.md) 是排盘之后的人物卡牌生成 Skill 设计：把命盘转成 3:4 竖版人物卡牌，含日主形象、格局神态、身强弱修正、五行配色背景，以及核心优势、性格弱点、性格总评、当下心态四段文字分析。
 
+## 人物卡牌生成（card.py）
+
+[`card.py`](card.py) 是排盘之后的下游工具：把命盘转成 3:4 竖版「人物卡牌」，含形象出图 Prompt 与文字分析。它复用 `paipan.py` 的排盘函数，拼装日主形象、格局神态、身强弱修正、五行配色，以及核心优势、性格弱点、性格总评、当下心态。设计规范见 [`cardskill.md`](cardskill.md)。
+
+```bash
+python3 card.py --date 1990-05-20 --time 14:30 --gender 男 --city 北京 --zwt 116.4
+python3 card.py --date 1990-05-20 --time 14:30 --gender 男 --json   # 输出结构化 JSON
+```
+
+输出样例见 [`examples/card_sample_output.txt`](examples/card_sample_output.txt)。
+
 ## 校验
 
 运行回归测试：
