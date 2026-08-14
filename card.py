@@ -167,6 +167,72 @@ DECADE_MOOD = {
     "劫财": "争夺心强、冲动、合伙易纠纷、花钱冲动",
 }
 
+# 1.5 命运剧本：日主角色（游戏化职业定位）
+GAN_ROLE = {
+    "甲": ("森林守护者", "高大挺拔、正气凛然，天生的守护者，习惯站在别人前面挡风遮雨"),
+    "乙": ("田园织梦者", "温柔坚韧、善于联结，天生的编织者，把散落的美好连成一片风景"),
+    "丙": ("烈日骑士", "热烈坦荡、自带光芒，天生的引路人，走到哪里，哪里就亮起来"),
+    "丁": ("暗夜引路人", "安静专注、内心滚烫，天生的守望者，越是暗处，越见你的光"),
+    "戊": ("大地壁垒", "厚重可靠、稳如磐石，天生的承重墙，山雨欲来，你自岿然"),
+    "己": ("沃土孕育者", "温润包容、滋养万物，天生的耕耘者，能把贫瘠之地养成良田"),
+    "庚": ("破阵剑士", "锋锐果决、直来直往，天生的破局者，认准了便一剑开山"),
+    "辛": ("秘宝鉴藏师", "精致敏锐、慧眼识珠，天生的鉴赏者，于细微处见大美"),
+    "壬": ("沧海行者", "开阔灵动、随物赋形，天生的航海家，江河湖海都是你的路"),
+    "癸": ("幽泉冥想师", "沉静敏锐、柔韧绵长，天生的聆听者，于无声处听惊雷"),
+}
+
+# 1.6 命运剧本：格局 → 主线任务
+PATTERN_QUEST = {
+    "正官格": ("「秩序与名望之路」", "在规则之内，靠沉稳与担当，一步步建立自己的权威"),
+    "七杀格": ("「逆风翻盘之路」", "在压力与挑战中淬炼成钢，越是逆风，越能翻盘"),
+    "正印格": ("「传承与守护之路」", "以学识与慈心为灯，照亮自己，也照亮后来的人"),
+    "偏印格": ("「秘境探索之路」", "在冷门与玄思中寻找答案，你的地图上有别人看不见的路"),
+    "正财格": ("「实业筑城之路」", "一砖一瓦，垒出踏实而丰盛的人生城池"),
+    "偏财格": ("「逐浪机遇之路」", "在流动的人群与财富间起舞，机会是你的主场"),
+    "食神格": ("「创造与品味之路」", "把平凡日子过成作品，让生活因你而变得更好"),
+    "伤官格": ("「破旧立新之路」", "做规则的怀疑者与改写者，旧墙由你凿出新窗"),
+    "建禄格": ("「白手起家之路」", "不靠祖荫、不靠运气，全靠自己这双手"),
+    "羊刃格": ("「烈火淬锋之路」", "刚烈果决、敢爱敢恨，在一次次的对抗中把自己磨成利刃"),
+    "月劫格": ("「自强不息之路」", "独立要强，争的是一口气，拼的是一条自己的路"),
+    "专旺格": ("「一极独行之路」", "把一种力量走到极致，你就是自己的偏执与骄傲"),
+    "从格": ("「顺势而为之路」", "识时务、借大势，你不是随波逐流，你是顺水行舟的高手"),
+}
+
+# 1.7 天赋技能点：十神 → 本命技能
+TEN_GOD_TALENT = {
+    "正官": {"name": "秩序光环", "desc": "被信任与被托付的能力，稳重靠谱是你与生俱来的被动技能"},
+    "七杀": {"name": "破阵之势", "desc": "越是高压越清醒，危机关头能爆发出惊人的翻盘之力"},
+    "正印": {"name": "传承之心", "desc": "学什么都快，天然懂得把知识化为滋养自己的养分"},
+    "偏印": {"name": "慧眼识机", "desc": "直觉敏锐，能看见事物背面与角落里藏着的答案"},
+    "正财": {"name": "实业之基", "desc": "务实稳健，能把一件事做深做久，像种树一样积累"},
+    "偏财": {"name": "机遇之眼", "desc": "对机会天生敏感，人脉与眼光是你随身携带的通行证"},
+    "食神": {"name": "创造之泉", "desc": "才华与品味俱佳，能把平常事做出滋味来"},
+    "伤官": {"name": "破旧之刃", "desc": "思维锋利，天生不喜欢旧答案，革新是你的本能"},
+    "比肩": {"name": "并肩之力", "desc": "独立又合群，站得稳，也愿意为同伴挺身而出"},
+    "劫财": {"name": "逆境战意", "desc": "越挫越勇，绝境里反而能爆发出惊人的能量"},
+}
+
+# 1.8 身强弱 → 角色定位
+STRENGTH_ROLE = {
+    "身强": ("正面作战型", "血厚攻高、扛得住压力，适合冲锋在前、担起大梁；但要记得，不必所有事都自己扛"),
+    "身弱": ("智谋协作型", "血薄但敏捷点满，适合借力打力、以柔克刚，你的战场在幕后与细节"),
+    "中和": ("均衡发展型", "可攻可守、进退有度，没有明显短板，稳中求进是你最好的节奏"),
+}
+
+# 1.9 大运十神 → 剧情章节
+DECADE_CHAPTER = {
+    "正官": ("秩序考验", "责任加身的一章，站稳脚跟，名望会在规矩里慢慢长出来"),
+    "七杀": ("逆风试炼", "压力即磨刀石的一章，扛过去，你会换一个人"),
+    "正印": ("静水流深", "蓄力充电的一章，别急着赶路，沉淀是为了走得更远"),
+    "偏印": ("迷雾探秘", "向内探索的一章，独处不是孤独，是你在自己的地图上开新路"),
+    "正财": ("播种收获", "务实耕耘的一章，一分耕耘一分收获，稳住就能赢"),
+    "偏财": ("风起云涌", "机遇涌动的一章，机会很多，更要慢一步看清再下注"),
+    "食神": ("悠游乐章", "舒展身心的一章，享受生活不是懈怠，是回血"),
+    "伤官": ("破茧之音", "表达自我的一章，别怕与众不同，你的声音就是你的路"),
+    "比肩": ("并肩之战", "独立成长的一章，朋友与对手都会推着你往前走"),
+    "劫财": ("争锋时刻", "竞争激烈的一章，守住本心，别被冲动带偏"),
+}
+
 # 十神归类（用于承受力判断）
 OFFICER_WEALTH = {"正官", "七杀", "正财", "偏财"}
 YIN_BI = {"正印", "偏印", "比肩", "劫财"}
@@ -248,7 +314,7 @@ def cast_chart(date, time, gender, city, zwt, tz_offset):
 
 
 def current_decade_and_year(chart, now=None):
-    """计算当前大运与当前流年（流年以立春分界）。"""
+    """计算当前大运、当前流年（流年以立春分界）与大运序号（0-7，未起运归 0）。"""
     now = now or datetime.now()
     # 当前流年
     today = paipan.sxtwl.fromSolar(now.year, now.month, now.day)
@@ -259,7 +325,7 @@ def current_decade_and_year(chart, now=None):
     idx = int((age - chart["start_age"]) // 10)
     idx = max(0, min(idx, 7))
     decade = chart["decades"][idx]
-    return decade, liunian
+    return decade, liunian, idx
 
 
 # =====================================================================
@@ -400,6 +466,77 @@ def _build_advice(card):
     return "顺着喜用神方向，顺势而为"
 
 
+def build_script(card, chapter_no):
+    """命运剧本：角色定位 + 主线任务 + 当前章节 + 顺风 / 低谷提示。"""
+    role_name, role_desc = GAN_ROLE[card["day_gan"]]
+    quest_name, quest_desc = PATTERN_QUEST.get(
+        card["pattern"], ("「自定义之路」", "你的剧本由你自己执笔，主线任务等你亲手开启")
+    )
+    decade = card["decade_raw"]
+    decade_deity = paipan.shishen(card["day_gan"], decade[0])
+    chapter_name, chapter_desc = DECADE_CHAPTER.get(
+        decade_deity, ("新篇章", "你正在书写属于自己的新篇章")
+    )
+
+    # 流年喜忌 → 顺风 / 低谷章节
+    ln_wx = paipan.GAN_WX[card["year_raw"][0]]
+    useful = {e.strip() for e in card["useful_god"].split("、")}
+    avoid = {e.strip() for e in card["avoid_god"].split("、")}
+    if ln_wx in useful:
+        year_tone = f"这一章是顺风局（{card['current_year']}），风向正好，可以借势而上"
+    elif ln_wx in avoid:
+        year_tone = f"这一章是低谷章节（{card['current_year']}），风不顺，别硬刚——慢下来回血，低谷是用来渡过的"
+    else:
+        year_tone = f"这一章没有大风浪（{card['current_year']}），适合稳住节奏、照常推进"
+
+    return {
+        "role": role_name,
+        "role_desc": role_desc,
+        "quest": quest_name,
+        "quest_desc": quest_desc,
+        "chapter_no": chapter_no,
+        "chapter": chapter_name,
+        "chapter_desc": chapter_desc,
+        "year_tone": year_tone,
+    }
+
+
+def build_talents(card):
+    """天赋技能点：本命技能（主导十神）+ 角色定位（身强弱）+ 加点建议（喜用神）。"""
+    deity = card["ten_god_dominant"]
+    talent = TEN_GOD_TALENT.get(
+        deity, {"name": "本命之力", "desc": "你的天赋尚未被完全点亮，正在等待合适的时机"}
+    )
+    role_type, role_desc = STRENGTH_ROLE[card["body_strength"]]
+
+    fuyi = card.get("fuyi", [])
+    if not fuyi:
+        points = "把天赋点都投在本命技能上，把一件事做到极致"
+    else:
+        _, reason = fuyi[0]
+        if "印" in reason:
+            points = "优先点亮「传承之心」与「慧眼识机」：多读书、多拜师，善用长辈与贵人的力"
+        elif "比劫" in reason or "帮身" in reason:
+            points = "优先点亮「并肩之力」：善用朋友与团队，主动争取支持，别一个人扛"
+        elif "食伤" in reason or "泄秀" in reason:
+            points = "优先点亮「创造之泉」与「破旧之刃」：把才华落到作品上，表达即修行"
+        elif "财" in reason:
+            points = "优先点亮「实业之基」与「机遇之眼」：务实经营，稳稳接住每一个机会"
+        elif "官杀" in reason or "制身" in reason:
+            points = "优先点亮「秩序光环」与「破阵之势」：以目标与纪律约束自己，压力会变成铠甲"
+        else:
+            points = "顺着喜用神的方向加点，把自己的优势放大"
+
+    return {
+        "deity": deity,
+        "skill_name": talent["name"],
+        "skill_desc": talent["desc"],
+        "role_type": role_type,
+        "role_desc": role_desc,
+        "skill_points": points,
+    }
+
+
 # =====================================================================
 # 六、主流程
 # =====================================================================
@@ -418,7 +555,7 @@ def build_card(chart, now=None):
     useful_elements = [e for e, _ in use_gods["fuyi"]]
     useful_god = "、".join(useful_elements)
     avoid_god = "、".join(e for e in ALL_ELEMENTS if e not in useful_elements)
-    current_decade, current_year = current_decade_and_year(chart, now)
+    current_decade, current_year, decade_idx = current_decade_and_year(chart, now)
 
     card = {
         "day_master": f"{day_gan}{element}",
@@ -432,11 +569,15 @@ def build_card(chart, now=None):
         "five_elements_count": {k: round(v, 1) for k, v in chart["wuxing"].items()},
         "current_decade": f"{current_decade}大运",
         "current_year": f"{current_year}年",
+        "decade_raw": current_decade,
+        "year_raw": current_year,
         "ten_god_dominant": selected["deity"],
         "composite_demeanor": _composite_demeanor(pattern_analysis),
         "fuyi": use_gods["fuyi"],
         "day_gan": day_gan,
     }
+    card["script"] = build_script(card, decade_idx + 1)
+    card["talents"] = build_talents(card)
     card["image_prompt"] = build_image_prompt(card)
     text = build_text(card)
     card.update(text)
@@ -447,10 +588,24 @@ def render_text(card):
     """人类可读输出。"""
     line = "=" * 50
     top = f"{card['day_master']} · {card['pattern']}"
+    s = card["script"]
+    t = card["talents"]
     return "\n".join([
         line,
         f"八字人物卡牌 · {top}",
+        f"角色：{s['role']} ｜ 主线任务：{s['quest']}",
         line,
+        "",
+        f"【命运剧本】",
+        f"  角色定位：{s['role']} —— {s['role_desc']}",
+        f"  主线任务：{s['quest']} —— {s['quest_desc']}",
+        f"  当前章节：第 {s['chapter_no']} 章「{s['chapter']}」—— {s['chapter_desc']}",
+        f"  {s['year_tone']}",
+        "",
+        f"【天赋与技能点】",
+        f"  本命技能：「{t['skill_name']}」（{t['deity']}）—— {t['skill_desc']}",
+        f"  角色定位：{t['role_type']} —— {t['role_desc']}",
+        f"  加点建议：{t['skill_points']}",
         "",
         f"【身强弱与喜用神】",
         f"  {card['body_strength']} ｜ 喜用神: {card['useful_god']} ｜ 忌神: {card['avoid_god']}",
