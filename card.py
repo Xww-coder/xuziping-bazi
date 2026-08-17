@@ -4,7 +4,9 @@
 八字人物卡牌生成器（card.py）
 
 把 paipan.py 的排盘结果，拼装成 3:4 竖版「人物卡牌」：
-  - 形象出图 Prompt（外貌 × 神态 × 身强弱 × 五行配色）
+  - 命运剧本（角色定位 / 主线任务 / 当前章节 / 顺风低谷）
+  - 天赋与技能点（本命技能 / 天赋方向 / 角色定位 / 加点建议）
+  - 形象出图 Prompt（外貌 × 神态 × 身强弱 × 五行配色，武侠玄幻风）
   - 文字分析（核心优势 / 性格弱点 / 性格总评 / 当下心态）
 
 依赖：与 paipan.py 相同（sxtwl），且需与 paipan.py 同目录。
@@ -24,28 +26,38 @@ import paipan  # 复用排盘引擎的常量与函数
 # 一、数据表（依据 cardskill.md 设计框架，逐条硬编码）
 # =====================================================================
 
-# 3.1 日主外貌基础层
+# 3.1 日主外貌基础层（骨相 + 体态 + 气场锚点，保证十天干形态差异化）
 GAN_APPEARANCE = {
-    "甲": {"face": "长鹅蛋脸 / 长方脸", "features": "眉骨高、眉浓修长、眼细长有神、鼻梁直",
-           "body": "高挑修长、肩宽", "aura": "正气爽朗、有威严"},
-    "乙": {"face": "瓜子脸 / 小圆脸", "features": "弯眉、桃花眼 / 杏眼、唇厚薄适中",
-           "body": "纤细匀称、柔性体态", "aura": "温婉耐看、亲和力"},
-    "丙": {"face": "圆脸 / 方圆脸", "features": "大眼亮眼、眉上扬、唇红润",
-           "body": "饱满厚实、精气神外放", "aura": "阳光热情、有感染力"},
-    "丁": {"face": "尖鹅蛋脸 / 窄长小脸", "features": "眼深邃狭长、眸含光、眉细",
-           "body": "苗条清瘦、骨架小", "aura": "清冷内敛、越细看越好看"},
-    "戊": {"face": "方脸 / 国字脸", "features": "鼻宽大厚实、眼偏小沉稳、唇厚",
-           "body": "骨架粗大、身壮厚实", "aura": "敦厚老实、可靠稳重"},
-    "己": {"face": "方圆圆脸 / 肉感圆脸", "features": "五官圆润柔和、鼻头圆、眉眼温顺",
-           "body": "匀称丰满、中等个", "aura": "随和接地气、忍耐温柔"},
-    "庚": {"face": "棱角长方脸", "features": "剑眉、眼锐利、鼻梁高挺锋利",
-           "body": "骨架坚硬、肩宽骨感、挺拔", "aura": "干练凌厉、英气十足"},
-    "辛": {"face": "精致瓜子脸 / 小巧鹅蛋脸", "features": "五官精巧、眼秀气、鼻梁精致、唇形好看",
-           "body": "纤细精致、体态秀气", "aura": "贵气清冷、精致优雅"},
-    "壬": {"face": "宽圆脸 / 阔面", "features": "大眼灵动、眼窝略深、耳偏大",
-           "body": "匀称修长、体态灵活", "aura": "圆滑通透、机敏随性"},
-    "癸": {"face": "窄小脸 / 柔和尖脸", "features": "眼含秋水、眼细长、眉眼有氛围感",
-           "body": "柔弱纤细、娇小柔软", "aura": "敏感柔情、神秘内敛"},
+    "甲": {"build": "高挑挺拔", "face": "长方方正脸型、眉骨偏高",
+           "features": "眉浓修长、眼细长有神、鼻梁挺直",
+           "aura": "正气威严", "anchor": "如松树般挺拔硬朗"},
+    "乙": {"build": "纤细柔弱", "face": "瓜子脸、线条柔润",
+           "features": "弯眉、桃花眼、唇厚薄适中",
+           "aura": "温婉耐看", "anchor": "如花草般柔美亲和"},
+    "丙": {"build": "体态匀称、线条柔和圆润", "face": "圆润柔和的圆脸",
+           "features": "大而明亮的杏眼、眉上扬、唇色红润",
+           "aura": "温暖外放", "anchor": "如太阳般温暖亲和"},
+    "丁": {"build": "苗条清瘦", "face": "尖小精致脸型",
+           "features": "眼深邃狭长、眸含光、眉细",
+           "aura": "清冷内敛", "anchor": "如烛火般精巧耐看"},
+    "戊": {"build": "结实敦厚", "face": "国字脸方脸、鼻宽大厚实",
+           "features": "眼偏小沉稳、唇厚",
+           "aura": "敦厚稳重", "anchor": "如高山般厚重可靠"},
+    "己": {"build": "体态匀称、柔和圆润", "face": "圆润柔和的圆脸、五官柔和",
+           "features": "鼻头圆、眉眼温顺",
+           "aura": "随和温柔", "anchor": "如田园般温润亲和"},
+    "庚": {"build": "骨感挺拔", "face": "棱角分明的方脸",
+           "features": "剑眉、眼锐利、鼻梁高挺锋利",
+           "aura": "凌厉英气", "anchor": "如刀剑般锋利干练"},
+    "辛": {"build": "纤细精致", "face": "精致小巧的瓜子脸",
+           "features": "五官精巧、眼秀气、鼻梁精致、唇形好看",
+           "aura": "贵气清冷", "anchor": "如珠宝般精致优雅"},
+    "壬": {"build": "高挑修长灵动", "face": "宽圆略带棱角的脸型",
+           "features": "大眼灵动有神、眼窝微深、表情洒脱",
+           "aura": "机敏通透", "anchor": "如江河般流动随性"},
+    "癸": {"build": "娇小柔弱", "face": "窄小脸、柔和尖脸",
+           "features": "眼含秋水、眼细长、眉眼有氛围感",
+           "aura": "敏感柔情", "anchor": "如雨露般纤细神秘"},
 }
 
 # 日主意象（用于性格总评「{日主意象}般」）
@@ -165,6 +177,29 @@ DECADE_MOOD = {
     "伤官": "想表达、不服管、创新欲强、易叛逆、心高气傲",
     "比肩": "想竞争、独立意识强、朋友多、易破财、不服输",
     "劫财": "争夺心强、冲动、合伙易纠纷、花钱冲动",
+}
+
+# 天赋：主导十神 → 天赋方向
+DEITY_TALENT = {
+    "食神": "创意才华 · 艺术审美 · 生活美学 · 感染力",
+    "伤官": "创新突破 · 技术天赋 · 口才表达 · 颠覆思维",
+    "正官": "领导管理 · 组织执行 · 责任担当 · 规则意识",
+    "七杀": "胆识魄力 · 危机突破 · 抗压竞争 · 开拓攻坚",
+    "正财": "理财规划 · 务实经营 · 价值判断 · 稳健积累",
+    "偏财": "社交人脉 · 机会嗅觉 · 资源整合 · 灵活应变",
+    "正印": "学习能力 · 悟性研究 · 文化底蕴 · 深度思考",
+    "偏印": "洞察谋略 · 非常规思维 · 心理洞察 · 专精深耕",
+    "比肩": "独立自主 · 行动执行 · 竞争意识 · 坚韧抗压",
+    "劫财": "胆识敢闯 · 掌控决断 · 人脉整合 · 进取突破",
+}
+
+# 天赋：日主五行 → 天赋气质呈现
+ELEMENT_TALENT = {
+    "木": "以生长与规划的方式呈现，擅长培育引导",
+    "火": "以表现与感染的方式呈现，自带魅力气场",
+    "土": "以承载与整合的方式呈现，稳健厚重",
+    "金": "以决断与精进的方式呈现，执行力强",
+    "水": "以洞察与变通的方式呈现，智谋机敏",
 }
 
 # 1.5 命运剧本：日主角色（游戏化职业定位）
@@ -333,7 +368,7 @@ def current_decade_and_year(chart, now=None):
 # =====================================================================
 
 def build_image_prompt(card):
-    """拼装出图 Prompt。"""
+    """拼装出图 Prompt（武侠玄幻风，差异化外貌）。"""
     ap = GAN_APPEARANCE[card["day_gan"]]
     strength = STRENGTH_FIX[card["body_strength"]]
     palette = ELEMENT_PALETTE[card["element"]]
@@ -341,20 +376,23 @@ def build_image_prompt(card):
     composite = card.get("composite_demeanor", "")
 
     lines = [
-        "竖版人物卡牌插画，3:4比例。",
-        f"主体：一位年轻人物，{ap['face']}，{ap['features']}，{ap['body']}，"
-        f"{strength['prompt']}，气质{ap['aura']}。",
+        "中国武侠玄幻风人物立绘，竖版构图，人物居中偏上，主体突出放大。",
+        f"主体：一位{ap['build']}的中国武侠人物，{ap['face']}，{ap['features']}，"
+        f"{strength['prompt']}，气场{ap['aura']}，{ap['anchor']}。",
     ]
     if demeanor:
         lines.append(f"神态：{demeanor}。")
     if composite:
         lines.append(f"复合格局加成：{composite}。")
     lines.append(
-        f"背景：{palette['imagery']}，主色调{palette['main']}，"
-        f"辅助色{palette['aux']}；融入喜用神「{card['useful_god']}」的意象，"
-        f"弱化忌神「{card['avoid_god']}」元素。"
+        f"服饰：中国武侠风劲装长袍，{palette['main']}为主色调，{palette['aux']}纹饰，广袖飘逸，衣袂翻飞。"
     )
-    lines.append("风格：精致唯美插画风格，光影柔和，细节丰富，塔罗牌质感。")
+    lines.append(
+        f"背景：玄幻氛围，深邃星空与流动云雾，{palette['imagery']}，"
+        f"融入喜用神「{card['useful_god']}」的意象，弱化忌神「{card['avoid_god']}」元素，梦幻强烈的光影特效。"
+    )
+    lines.append("风格：中国武侠玄幻游戏角色立绘，精致唯美，人物主体强化突出，高级质感。"
+                 "不要任何文字，不要塔罗牌边框，不要占星符号，不要罗马数字。")
     return "\n".join(lines)
 
 
@@ -363,7 +401,7 @@ def build_image_prompt(card):
 # =====================================================================
 
 def build_text(card):
-    """拼装核心优势 / 性格弱点 / 性格总评 / 当下心态。"""
+    """拼装天赋 / 核心优势 / 性格弱点 / 性格总评 / 当下心态。"""
     p = card["pattern"]
     strengths = []
     if p in PATTERN_STRENGTH:
@@ -384,11 +422,21 @@ def build_text(card):
 
     mood = _build_mood(card)
     return {
+        "talent": build_talent(card),
         "strengths": "；".join(s for s in strengths if s),
         "weaknesses": "；".join(w for w in weaknesses if w),
         "summary": summary,
         "mood": mood,
     }
+
+
+def build_talent(card):
+    """天赋：主导十神天赋方向 + 日主五行气质呈现。"""
+    deity_t = DEITY_TALENT.get(card["ten_god_dominant"], "")
+    element_t = ELEMENT_TALENT.get(card["element"], "")
+    if deity_t and element_t:
+        return f"{deity_t}；{element_t}"
+    return deity_t or element_t
 
 
 def _summary_tag(card):
@@ -604,15 +652,9 @@ def render_text(card):
         "",
         f"【天赋与技能点】",
         f"  本命技能：「{t['skill_name']}」（{t['deity']}）—— {t['skill_desc']}",
+        f"  天赋方向：{card['talent']}",
         f"  角色定位：{t['role_type']} —— {t['role_desc']}",
         f"  加点建议：{t['skill_points']}",
-        "",
-        f"【身强弱与喜用神】",
-        f"  {card['body_strength']} ｜ 喜用神: {card['useful_god']} ｜ 忌神: {card['avoid_god']}",
-        f"  格局大类: {card['pattern_type']} ｜ 主导十神: {card['ten_god_dominant']}",
-        "",
-        f"【出图 Prompt】",
-        card["image_prompt"],
         "",
         f"【核心优势】",
         f"  {card['strengths']}",
@@ -625,6 +667,13 @@ def render_text(card):
         "",
         f"【当下心态】",
         f"  {card['mood']}",
+        "",
+        f"【身强弱与喜用神】",
+        f"  {card['body_strength']} ｜ 喜用神: {card['useful_god']} ｜ 忌神: {card['avoid_god']}",
+        f"  格局大类: {card['pattern_type']} ｜ 主导十神: {card['ten_god_dominant']}",
+        "",
+        f"【出图 Prompt】",
+        card["image_prompt"],
         "",
         line,
     ])
