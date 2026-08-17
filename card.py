@@ -268,6 +268,15 @@ DECADE_CHAPTER = {
     "劫财": ("争锋时刻", "竞争激烈的一章，守住本心，别被冲动带偏"),
 }
 
+# 1.10 稀有度（星辉流，全正向档位，按格局组合的独特程度判定，不代表命贵命贱）
+RARITY_LEVELS = {
+    5: ("天命", "多重罕见格局交辉，千中无一——你这套角色设定，独一无二"),
+    4: ("极星", "不靠祖荫、自带锋芒的格局——你的路，是自己闯出来的"),
+    3: ("耀星", "五行均衡、可进可退——这种配置可遇不可求，你自带平衡的光芒"),
+    2: ("明星", "成格稳健、路线清晰——你的天赋组合很扎实，稳中求进即是上策"),
+    1: ("晨星", "破晓之星——你的剧本还在展开，光芒会越走越亮"),
+}
+
 # 十神归类（用于承受力判断）
 OFFICER_WEALTH = {"正官", "七杀", "正财", "偏财"}
 YIN_BI = {"正印", "偏印", "比肩", "劫财"}
@@ -324,6 +333,22 @@ def _current_age(chart, now=None):
     if (now.month, now.day) < (born.month, born.day):
         age -= 1
     return max(age, 0)
+
+
+def _rarity_rank(chart):
+    """稀有度判定（1-5，全正向）：按格局组合的独特程度，不代表命贵命贱。"""
+    pa = chart["pattern_analysis"]
+    pattern_type = _map_pattern_type(pa)
+    special = "、".join(pa.get("special_candidates", []))
+    if any(k in special for k in ("专旺格候选", "从弱格候选", "从强格候选", "从格候选")):
+        return 5
+    if pattern_type == "禄刃格":
+        return 4
+    if pattern_type == "正格" and chart["day_analysis"]["status"] == "中和":
+        return 3
+    if len(pa["candidates"]) == 1:
+        return 2
+    return 1
 
 
 # =====================================================================
@@ -447,6 +472,7 @@ def build_card_layout_prompt(card):
         "",
         "【顶部标题区】需包含以下文字：",
         f"标题：八字人物卡牌 · {card['day_master']} · {card['pattern']}",
+        f"稀有度：{card['rarity']['name']}",
         f"副标题：角色：{s['role']} ｜ 主线任务：{s['quest']}",
         "",
         "【左侧文字区】需包含以下文字：",
@@ -681,12 +707,15 @@ def build_card(chart, now=None):
     useful_god = "、".join(useful_elements)
     avoid_god = "、".join(e for e in ALL_ELEMENTS if e not in useful_elements)
     current_decade, current_year, decade_idx = current_decade_and_year(chart, now)
+    rank = _rarity_rank(chart)
+    name, desc = RARITY_LEVELS[rank]
 
     card = {
         "day_master": f"{day_gan}{element}",
         "yin_yang": "阳" if day_gan in paipan.GAN_YANG else "阴",
         "gender": chart["gender"],
         "age": _current_age(chart, now),
+        "rarity": {"level": rank, "name": name, "desc": desc},
         "element": element,
         "pattern": pattern,
         "pattern_type": _map_pattern_type(pattern_analysis),
@@ -721,6 +750,7 @@ def render_text(card):
     return "\n".join([
         line,
         f"八字人物卡牌 · {top}",
+        f"稀有度：{card['rarity']['name']} —— {card['rarity']['desc']}",
         f"角色：{s['role']} ｜ 主线任务：{s['quest']}",
         line,
         "",
