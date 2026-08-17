@@ -344,7 +344,7 @@ def cast_chart(date, time, gender, city, zwt, tz_offset):
         "pillars": pillars, "day_analysis": day_analysis,
         "pattern_analysis": pattern_analysis, "use_gods": use_gods,
         "wuxing": wuxing, "start_age": start_age, "decades": seq,
-        "forward": forward, "birth_year": y,
+        "forward": forward, "birth_year": y, "gender": gender,
     }
 
 
@@ -374,10 +374,11 @@ def build_image_prompt(card):
     palette = ELEMENT_PALETTE[card["element"]]
     demeanor = PATTERN_DEMEANOR.get(card["pattern"], "")
     composite = card.get("composite_demeanor", "")
+    gender = "男性" if card["gender"] == "男" else "女性"
 
     lines = [
         "中国武侠玄幻风人物立绘，竖版构图，人物居中偏上，主体突出放大。",
-        f"主体：一位{ap['build']}的中国武侠人物，{ap['face']}，{ap['features']}，"
+        f"主体：一位年轻的{gender}中国武侠人物，{ap['build']}，{ap['face']}，{ap['features']}，"
         f"{strength['prompt']}，气场{ap['aura']}，{ap['anchor']}。",
     ]
     if demeanor:
@@ -654,6 +655,7 @@ def build_card(chart, now=None):
     card = {
         "day_master": f"{day_gan}{element}",
         "yin_yang": "阳" if day_gan in paipan.GAN_YANG else "阴",
+        "gender": chart["gender"],
         "element": element,
         "pattern": pattern,
         "pattern_type": _map_pattern_type(pattern_analysis),
