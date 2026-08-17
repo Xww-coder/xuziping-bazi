@@ -469,7 +469,7 @@ def build_card_layout_prompt(card):
         f"底部标签：{card['body_strength']} ｜ 喜用神：{card['useful_god']} ｜ 忌神：{card['avoid_god']}",
         "",
         "【风格】中国武侠玄幻游戏角色卡牌立绘，人物主体强化突出，光影柔和，细节丰富，"
-        f"主色调融入「{card['element']}」五行意象，不要占星符号，不要罗马数字。",
+        f"主色调融入「{card['element']}」五行意象，在卡牌角落添加「思维热布丁」水印文字，不要占星符号，不要罗马数字。",
     ])
 
 
