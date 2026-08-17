@@ -704,7 +704,11 @@ def build_card(chart, now=None):
     element = paipan.GAN_WX[day_gan]
     body_strength = _map_strength(day_analysis["status"])
     pattern = selected["pattern"]
+    # 喜用神：扶抑口径 + 调候优先合并（急则治其标——寒暖失衡时，调候字优先级最高）
     useful_elements = [e for e, _ in use_gods["fuyi"]]
+    climate_element = use_gods["climate"][0]
+    if climate_element and climate_element not in useful_elements:
+        useful_elements = [climate_element] + useful_elements
     useful_god = "、".join(useful_elements)
     avoid_god = "、".join(e for e in ALL_ELEMENTS if e not in useful_elements)
     current_decade, current_year, decade_idx = current_decade_and_year(chart, now)
