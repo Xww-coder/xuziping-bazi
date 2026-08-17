@@ -396,6 +396,52 @@ def build_image_prompt(card):
     return "\n".join(lines)
 
 
+def build_card_layout_prompt(card):
+    """生成「人物 + 文字排版」一体的完整卡牌出图提示词，可直接喂 AI 绘图工具出成品卡牌。"""
+    s = card["script"]
+    t = card["talents"]
+    palette_main = ELEMENT_PALETTE[card["element"]]["main"]
+    # 复用形象 Prompt 的主体部分（剔除"不要任何文字"等纯人物约束）
+    body_lines = [
+        ln for ln in card["image_prompt"].split("\n")
+        if ln and not ln.startswith("风格：") and "竖版构图" not in ln
+    ]
+    return "\n".join([
+        "设计一张中国武侠玄幻风人物卡牌，竖版 3:4 构图，精致唯美，高级质感。",
+        "",
+        "【整体布局】",
+        "卡牌分为上下两个区域：上方约 60% 为人物立绘主视觉区，下方约 40% 为文字信息区，"
+        f"两区之间用「{palette_main}」色调的水墨渐变自然分隔。文字排版工整清晰、中文宋体/楷体风格，留白舒适。",
+        "",
+        "【图片主体】",
+        " ".join(body_lines),
+        "",
+        "【文字内容】卡牌上必须包含以下文字：",
+        f"标题：八字人物卡牌 · {card['day_master']} · {card['pattern']}",
+        f"副标题：角色：{s['role']} ｜ 主线任务：{s['quest']}",
+        "",
+        "《命运剧本》",
+        f"角色定位：{s['role']}——{s['role_desc']}",
+        f"主线任务：{s['quest']}——{s['quest_desc']}",
+        f"当前章节：第{s['chapter_no']}章「{s['chapter']}」——{s['chapter_desc']}",
+        s['year_tone'],
+        "",
+        "《天赋与技能点》",
+        f"本命技能：「{t['skill_name']}」（{t['deity']}）——{t['skill_desc']}",
+        f"天赋方向：{card['talent']}",
+        f"角色定位：{t['role_type']}——{t['role_desc']}",
+        f"加点建议：{t['skill_points']}",
+        "",
+        f"《核心优势》{card['strengths']}",
+        f"《性格弱点》{card['weaknesses']}",
+        "",
+        f"底部标签：{card['body_strength']} ｜ 喜用神：{card['useful_god']} ｜ 忌神：{card['avoid_god']}",
+        "",
+        "【风格】中国武侠玄幻游戏角色卡牌立绘，人物主体强化突出，光影柔和，细节丰富，"
+        f"主色调融入「{card['element']}」五行意象，不要占星符号，不要罗马数字。",
+    ])
+
+
 # =====================================================================
 # 五、文字分析拼装
 # =====================================================================
@@ -629,6 +675,7 @@ def build_card(chart, now=None):
     card["image_prompt"] = build_image_prompt(card)
     text = build_text(card)
     card.update(text)
+    card["card_prompt"] = build_card_layout_prompt(card)
     return card
 
 
@@ -674,6 +721,9 @@ def render_text(card):
         "",
         f"【出图 Prompt】",
         card["image_prompt"],
+        "",
+        f"【完整卡牌 Prompt】（人物 + 文字一体，可直接出图）",
+        card["card_prompt"],
         "",
         line,
     ])
