@@ -301,6 +301,31 @@ def _composite_demeanor(pattern_analysis: dict) -> str:
     return "、".join(hits)
 
 
+def _age_group(age):
+    """周岁年龄 → 年龄段描述。"""
+    if age < 18:
+        return "少年"
+    if age < 30:
+        return "青年"
+    if age < 45:
+        return "青壮年"
+    if age < 60:
+        return "中年"
+    if age < 75:
+        return "中老年"
+    return "老年"
+
+
+def _current_age(chart, now=None):
+    """按出生时刻精确计算周岁年龄。"""
+    now = now or datetime.now()
+    born = chart["local_dt"]
+    age = now.year - born.year
+    if (now.month, now.day) < (born.month, born.day):
+        age -= 1
+    return max(age, 0)
+
+
 # =====================================================================
 # 三、排盘（复用 paipan 内部函数）
 # =====================================================================
@@ -375,10 +400,12 @@ def build_image_prompt(card):
     demeanor = PATTERN_DEMEANOR.get(card["pattern"], "")
     composite = card.get("composite_demeanor", "")
     gender = "男性" if card["gender"] == "男" else "女性"
+    age = card["age"]
+    age_desc = f"一位{age}岁、正值{_age_group(age)}的{gender}中国武侠人物"
 
     lines = [
         "中国武侠玄幻风人物立绘，竖版构图，人物居中偏上，主体突出放大。",
-        f"主体：一位年轻的{gender}中国武侠人物，{ap['build']}，{ap['face']}，{ap['features']}，"
+        f"主体：{age_desc}，{ap['build']}，{ap['face']}，{ap['features']}，"
         f"{strength['prompt']}，气场{ap['aura']}，{ap['anchor']}。",
     ]
     if demeanor:
@@ -436,7 +463,7 @@ def build_card_layout_prompt(card):
         f"《核心优势》{card['strengths']}",
         f"《性格弱点》{card['weaknesses']}",
         "",
-        f"底部标签：{card['body_strength']} ｜ 喜用神：{card['useful_god']} ｜ 忌神：{card['avoid_god']}",
+        f"底部标签：{card['gender']} · {card['age']} 岁 ｜ {card['body_strength']} ｜ 喜用神：{card['useful_god']} ｜ 忌神：{card['avoid_god']}",
         "",
         "【风格】中国武侠玄幻游戏角色卡牌立绘，人物主体强化突出，光影柔和，细节丰富，"
         f"主色调融入「{card['element']}」五行意象，不要占星符号，不要罗马数字。",
@@ -656,6 +683,7 @@ def build_card(chart, now=None):
         "day_master": f"{day_gan}{element}",
         "yin_yang": "阳" if day_gan in paipan.GAN_YANG else "阴",
         "gender": chart["gender"],
+        "age": _current_age(chart, now),
         "element": element,
         "pattern": pattern,
         "pattern_type": _map_pattern_type(pattern_analysis),
@@ -718,7 +746,7 @@ def render_text(card):
         f"  {card['mood']}",
         "",
         f"【身强弱与喜用神】",
-        f"  {card['body_strength']} ｜ 喜用神: {card['useful_god']} ｜ 忌神: {card['avoid_god']}",
+        f"  {card['gender']} · {card['age']} 岁 ｜ {card['body_strength']} ｜ 喜用神: {card['useful_god']} ｜ 忌神: {card['avoid_god']}",
         f"  格局大类: {card['pattern_type']} ｜ 主导十神: {card['ten_god_dominant']}",
         "",
         f"【出图 Prompt】",
