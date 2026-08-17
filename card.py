@@ -493,6 +493,7 @@ def build_card_layout_prompt(card):
         f"《核心优势》{card['strengths']}",
         f"《性格弱点》{card['weaknesses']}",
         f"底部标签：{card['body_strength']} ｜ 喜用神：{card['useful_god']} ｜ 忌神：{card['avoid_god']}",
+        f"调候提示：{card['climate'][0] + '（' + card['climate'][1] + '）' if card['climate'][0] else card['climate'][1]}",
         "",
         "【风格】中国武侠玄幻游戏角色卡牌立绘，人物主体强化突出，光影柔和，细节丰富，"
         f"主色调融入「{card['element']}」五行意象，在卡牌角落添加「思维热布丁」水印文字，不要占星符号，不要罗马数字。",
@@ -730,6 +731,7 @@ def build_card(chart, now=None):
         "ten_god_dominant": selected["deity"],
         "composite_demeanor": _composite_demeanor(pattern_analysis),
         "fuyi": use_gods["fuyi"],
+        "climate": use_gods["climate"],
         "day_gan": day_gan,
     }
     card["script"] = build_script(card, decade_idx + 1)
@@ -780,6 +782,7 @@ def render_text(card):
         "",
         f"【身强弱与喜用神】",
         f"  {card['gender']} · {card['age']} 岁 ｜ {card['body_strength']} ｜ 喜用神: {card['useful_god']} ｜ 忌神: {card['avoid_god']}",
+        f"  调候提示: {card['climate'][0] + '（' + card['climate'][1] + '）' if card['climate'][0] else card['climate'][1]}",
         f"  格局大类: {card['pattern_type']} ｜ 主导十神: {card['ten_god_dominant']}",
         "",
         f"【出图 Prompt】",
