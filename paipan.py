@@ -49,6 +49,21 @@ JIANLU_BRANCH = {
     "甲":"寅", "乙":"卯", "丙":"巳", "丁":"午", "戊":"巳",
     "己":"午", "庚":"申", "辛":"酉", "壬":"亥", "癸":"子",
 }
+# 阳刃（阳干帝旺之位）：甲刃卯、丙刃午、戊刃午、庚刃酉、壬刃子
+YANG_REN = {"甲":"卯", "丙":"午", "戊":"午", "庚":"酉", "壬":"子"}
+# 调候简表：依《穷通宝鉴》大意，按 日主五行 × 月令季节 取调候字（调候为辅，不夺格局喜忌）
+CLIMATE_TABLE = {
+    "木": {"春": ("火", "春木余寒未退，喜火暖局"), "夏": ("水", "夏木繁茂，喜水润局"),
+           "秋": ("火", "秋金克木，喜火制金护木"), "冬": ("火", "冬木寒凝，喜火暖局")},
+    "火": {"春": ("水", "春火初升，喜水润局"), "夏": ("水", "夏火炎烈，喜水调候"),
+           "秋": ("木", "秋火气衰，喜木生火"), "冬": ("木", "冬火寒微，喜木生火暖局")},
+    "土": {"春": ("火", "春土寒湿，喜火暖局"), "夏": ("水", "夏土燥热，喜水润局"),
+           "秋": ("火", "秋金泄土，喜火生土"), "冬": ("火", "冬土寒凝，喜火暖局")},
+    "金": {"春": ("火", "春金寒弱，喜火暖局"), "夏": ("水", "夏火克金，喜水淘洗降温"),
+           "秋": ("火", "秋金旺相，喜火锻炼成器"), "冬": ("火", "冬金寒凝，喜火暖局")},
+    "水": {"春": ("金", "春木泄水，喜金发水源"), "夏": ("金", "夏水衰弱，喜金生源"),
+           "秋": ("火", "秋水汪洋，喜火暖局调候"), "冬": ("火", "冬水寒盛，喜火暖局")},
+}
 SEASON_BY_BRANCH = {
     **{z: "春" for z in "寅卯辰"},
     **{z: "夏" for z in "巳午未"},
@@ -251,6 +266,15 @@ def analyze_day_master(pillars):
     }
 
 
+def _lu_ren_name(day_gan, month_branch):
+    """月令为日主禄/刃/劫时，不以月令立格，命名建禄格、羊刃格或月劫格。"""
+    if month_branch == JIANLU_BRANCH[day_gan]:
+        return "建禄格"
+    if month_branch == YANG_REN.get(day_gan):
+        return "羊刃格"
+    return "月劫格"
+
+
 def analyze_pattern(pillars, day_analysis):
     """按月令藏干及透干列出常规格局候选，并标记特殊格局复核项。"""
     day_gan = day_analysis["day_gan"]
@@ -270,10 +294,16 @@ def analyze_pattern(pillars, day_analysis):
         "level": "本气", "index": 0, "positions": [],
     }
     selected_deity = selected["deity"]
-    if selected_deity in PATTERN_NAMES:
+    # 严格子平法：月令本气为日主比劫（禄/刃/劫）者，不立八格，属建禄/羊刃/月劫，
+    # 透干财官食伤只决定用神，不改格局名称（《子平真诠》论建禄月劫）。
+    month_main_deity = shishen(day_gan, month_hidden[0])
+    if month_main_deity in {"比肩", "劫财"}:
+        pattern_name = _lu_ren_name(day_gan, month_branch)
+    elif selected_deity in PATTERN_NAMES:
         pattern_name = PATTERN_NAMES[selected_deity]
-    elif month_branch == JIANLU_BRANCH[day_gan]:
-        pattern_name = "建禄格"
+    elif month_main_deity in PATTERN_NAMES:
+        # 透干者为比劫（不立八格）时，退而以月令本气立格（如癸水申月壬透 → 正印格）
+        pattern_name = PATTERN_NAMES[month_main_deity]
     else:
         pattern_name = "月劫格"
 
@@ -286,10 +316,12 @@ def analyze_pattern(pillars, day_analysis):
         })
     for item in source_items:
         deity = item["deity"]
-        if deity in PATTERN_NAMES:
+        if month_main_deity in {"比肩", "劫财"}:
+            name = _lu_ren_name(day_gan, month_branch)
+        elif deity in PATTERN_NAMES:
             name = PATTERN_NAMES[deity]
-        elif month_branch == JIANLU_BRANCH[day_gan]:
-            name = "建禄格"
+        elif month_main_deity in PATTERN_NAMES:
+            name = PATTERN_NAMES[month_main_deity]
         else:
             name = "月劫格"
         candidates.append({**item, "pattern": name})
@@ -304,7 +336,14 @@ def analyze_pattern(pillars, day_analysis):
                     next(stem for stem in GAN if GAN_WX[stem] == element),
                 )
                 deity = shishen(day_gan, transformed_stem)
-                name = PATTERN_NAMES.get(deity, "建禄格" if month_branch == JIANLU_BRANCH[day_gan] else "月劫格")
+                if month_main_deity in {"比肩", "劫财"}:
+                    name = _lu_ren_name(day_gan, month_branch)
+                elif deity in PATTERN_NAMES:
+                    name = PATTERN_NAMES[deity]
+                elif month_main_deity in PATTERN_NAMES:
+                    name = PATTERN_NAMES[month_main_deity]
+                else:
+                    name = "月劫格"
                 if not any(item["stem"] == transformed_stem and item["pattern"] == name for item in candidates):
                     candidates.append({
                         "stem": transformed_stem, "deity": deity, "level": f"{relation_name}{element}候选",
@@ -373,42 +412,347 @@ def analyze_branch_relations(pillars):
     return relations
 
 
+def _deity_present(pillars, day_gan, deity_name):
+    """命局中某十神是否实见（天干透出或地支藏干，任一层级）。"""
+    for label, g, z in pillars:
+        if label == "日":
+            continue
+        if shishen(day_gan, g) == deity_name:
+            return True
+        for c in CANG[z]:
+            if shishen(day_gan, c) == deity_name:
+                return True
+    return False
+
+
+def _transparent_deities(pillars, day_gan):
+    """年、月、时三干透出之十神（去重、按柱序）。"""
+    out = []
+    for label, g, _ in pillars:
+        if label == "日":
+            continue
+        d = shishen(day_gan, g)
+        if d not in out:
+            out.append(d)
+    return out
+
+
+def _month_clash_note(pillars, month_branch):
+    """月令地支是否被年/日/时支六冲，冲则格局根基动摇，须提示。"""
+    for label, _, z in pillars:
+        if label == "月":
+            continue
+        if frozenset((month_branch, z)) in BRANCH_SIX_CLASHES:
+            return f"月令{month_branch}逢{label}支{z}之冲（用神根基动摇，须防破格）"
+    return None
+
+
+def _cong_follow_type(pillars, day_gan):
+    """从弱格候选所从何神：财 / 官杀 / 食伤(从儿)，按月令主气与透干加权。"""
+    counts = {"财": 0.0, "官杀": 0.0, "食伤": 0.0}
+    month_main = shishen(day_gan, CANG[pillars[1][2]][0])
+    if month_main in WEALTH_DEITIES:
+        counts["财"] += 3.0
+    elif month_main in OFFICER_DEITIES:
+        counts["官杀"] += 3.0
+    elif month_main in OUTPUT_DEITIES:
+        counts["食伤"] += 3.0
+    for label, g, _ in pillars:
+        if label == "日":
+            continue
+        d = shishen(day_gan, g)
+        if d in WEALTH_DEITIES:
+            counts["财"] += 1.5
+        elif d in OFFICER_DEITIES:
+            counts["官杀"] += 1.5
+        elif d in OUTPUT_DEITIES:
+            counts["食伤"] += 1.5
+    return max(counts, key=counts.get)
+
+
 def analyze_use_gods(pillars, day_analysis, pattern_analysis):
-    """分开给出格局、扶抑与调候三种口径，避免把“用神”混成一个答案。"""
+    """子平法喜忌：以月令格局为纲，分定 用神/相神(喜神)/忌神(病神)/药神，调候为辅。
+
+    严格依《渊海子平》《子平真诠》之旨：
+      - 用神专求月令（立格之神）；身强身弱只作格局内部选相之参考，
+        不以“身弱喜印比、身旺喜财官食伤”的笼统口诀替代格局判断。
+      - 喜神/相神：辅佐用神成格之神；忌神：破格之病神；
+        药神：制病之神；另列“岁运须防”之潜在忌神。
+      - 调候（《穷通宝鉴》简表）为辅，不夺格局喜忌。
+    """
+    day_gan = day_analysis["day_gan"]
     day_element = day_analysis["day_element"]
-    resource = source_element(day_element)
-    output = SHENG[day_element]
-    wealth = KE[day_element]
-    officer = controller_element(day_element)
+    yin = source_element(day_element)          # 印
+    shi = SHENG[day_element]                   # 食伤
+    cai = KE[day_element]                      # 财
+    guan = controller_element(day_element)     # 官杀
+    bijie = day_element                        # 比劫
     status = day_analysis["status"]
     selected = pattern_analysis["selected"]
+    pattern_name = selected["pattern"]
+    pattern_element = GAN_WX[selected["stem"]]
+    month_branch = day_analysis["month_branch"]
+    special = "、".join(pattern_analysis.get("special_candidates", []))
+    # 特殊格局候选覆盖名义格局名，喜忌按实际所从/所旺之神取（仍标注“候选须复核”）
+    cong = None
+    if "专旺格候选" in special:
+        pattern_name = "专旺格"
+    elif "从弱格候选" in special:
+        cong = _cong_follow_type(pillars, day_gan)
+        pattern_name = {"财": "从财格", "官杀": "从杀格"}.get(cong, "从儿格")
 
-    if status == "偏弱":
-        has_officer_pressure = day_analysis["month_deity"] in OFFICER_DEITIES or any(
-            item["deity"] in OFFICER_DEITIES for item in day_analysis["draining_stems"]
-        )
-        first_reason = "印星通关官杀并生身" if has_officer_pressure else "印星生扶日主"
-        fuyi = [(resource, first_reason), (day_element, "比劫帮身并固根")]
-    elif status == "偏旺":
-        fuyi = [(output, "食伤泄秀"), (wealth, "财星耗身并承接食伤"), (officer, "官杀制身")]
-    else:
-        pattern_element = GAN_WX[selected["stem"]]
-        fuyi = [(pattern_element, "日主近中和，优先围绕格局成败取用")]
+    yongshen = []   # (element, 十神称谓, 理由)
+    xishen = []     # (element, 理由)
+    jishen = []     # {"element","deity","reason","present"}
+    yaoshen = []    # (element, 理由)
 
-    season = SEASON_BY_BRANCH[day_analysis["month_branch"]]
-    if season == "夏":
-        climate = ("水", "夏令先看润燥降温；仍须服从全局制化")
-    elif season == "冬":
-        climate = ("火", "冬令先看暖局解寒；仍须服从全局制化")
+    def add_ji(element, deity, reason, present):
+        if not any(item["deity"] == deity and item["reason"] == reason for item in jishen):
+            jishen.append({"element": element, "deity": deity, "reason": reason, "present": present})
+
+    def add_yong(element, deity, reason):
+        if not any(e == element and d == deity for e, d, _ in yongshen):
+            yongshen.append((element, deity, reason))
+
+    def add_xi(element, reason):
+        if not any(e == element and r == reason for e, r in xishen):
+            xishen.append((element, reason))
+
+    def add_yao(element, reason):
+        if not any(e == element and r == reason for e, r in yaoshen):
+            yaoshen.append((element, reason))
+
+    # ---------------- 禄刃格（建禄 / 月劫 / 羊刃）：月令为日主旺地，不取月令立格 ----------------
+    if pattern_name in ("建禄格", "月劫格", "羊刃格"):
+        transparent = [d for d in _transparent_deities(pillars, day_gan) if d in OFFICER_DEITIES | WEALTH_DEITIES | OUTPUT_DEITIES]
+        if transparent:
+            lead = transparent[0]
+            yong_deity = lead
+            yong_reason = "禄刃格不取月令为用，取透干之财官食伤为用（%s透干）" % lead
+            add_yong({"正官": guan, "七杀": guan, "正财": cai, "偏财": cai,
+                      "食神": shi, "伤官": shi}[lead], lead, yong_reason)
+        else:
+            add_yong(cai, "财", "禄刃格不取月令为用，财官食伤喜透；无透则以财为用（建禄用财，须带食伤）")
+        if any(e == cai for e, _, _ in yongshen):
+            add_xi(shi, "食伤生财（防比劫分财）")
+        uses_guan = any(e == guan for e, _, _ in yongshen)
+        if uses_guan:
+            add_xi(cai, "财生官（官星有源）")
+            if _deity_present(pillars, day_gan, "正印") or _deity_present(pillars, day_gan, "偏印"):
+                add_xi(yin, "印护官（防伤官克官）")
+        if any(e == shi for e, _, _ in yongshen):
+            add_xi(cai, "食伤生财（泄秀流通）")
+        # 忌
+        if _deity_present(pillars, day_gan, "比肩") or _deity_present(pillars, day_gan, "劫财"):
+            add_ji(bijie, "比劫", "群比争财（禄刃格最忌比劫分夺）", True)
+        # 印：用官/杀时印为护官相神，不作忌；用财/食伤时印纯生比劫，透干者为忌
+        if not uses_guan and (_deity_present(pillars, day_gan, "正印") or _deity_present(pillars, day_gan, "偏印")):
+            add_ji(yin, "印", "印绶生比劫（禄刃身旺，忌印比再助）", True)
+        if uses_guan and _deity_present(pillars, day_gan, "伤官"):
+            add_ji(shi, "伤官", "伤官克官（禄刃用官，忌伤官）", True)
+        add_yao(guan, "官杀制比劫（群比争财之病，官为药）")
+
+    # ---------------- 专旺格候选：顺旺势 ----------------
+    elif pattern_name == "专旺格":
+        add_yong(yin, "印", "专旺顺势，喜印生旺气")
+        add_yong(bijie, "比劫", "专旺顺势，喜比劫帮身")
+        add_xi(shi, "食伤泄秀（专旺亦喜泄其菁英）")
+        add_ji(cai, "财", "财逆旺气（专旺格忌财）", False)
+        add_ji(guan, "官杀", "官杀逆旺（专旺格忌官杀）", False)
+
+    # ---------------- 从弱格候选：从其所旺之神，忌印比逆从 ----------------
+    elif pattern_name in ("从财格", "从杀格", "从儿格"):
+        yin_present = _deity_present(pillars, day_gan, "正印") or _deity_present(pillars, day_gan, "偏印")
+        bi_present = _deity_present(pillars, day_gan, "比肩") or _deity_present(pillars, day_gan, "劫财")
+        if cong == "财":
+            add_yong(cai, "财", "从财格，顺势从财")
+            add_xi(shi, "食伤生财（从财喜食伤）")
+            add_ji(yin, "印", "印逆从（从财忌印帮身）", yin_present)
+            add_ji(bijie, "比劫", "比劫逆从（从财忌比劫争财）", bi_present)
+        elif cong == "官杀":
+            add_yong(guan, "官杀", "从杀格（从官杀），顺势而从")
+            add_xi(cai, "财生杀（从杀喜财滋杀）")
+            add_ji(yin, "印", "印逆从（从杀忌印帮身）", yin_present)
+            add_ji(bijie, "比劫", "比劫逆从（从杀忌比劫抗杀）", bi_present)
+        else:
+            add_yong(shi, "食伤", "从儿格，顺势从食伤")
+            add_xi(cai, "食伤生财（从儿喜财）")
+            add_ji(yin, "印", "印逆从（从儿忌印夺食）", yin_present)
+            add_ji(bijie, "比劫", "比劫逆从（从儿忌比劫帮身）", bi_present)
+        yaoshen.append(("顺势", "从格喜顺势，无须制化（忌逆从之神）"))
+
+    # ---------------- 正官格 ----------------
+    elif pattern_name == "正官格":
+        add_yong(guan, "正官", "月令立格之神（正官为用）")
+        if status == "偏弱":
+            add_xi(yin, "官格身弱，印为相神（化官生身，官印相生）")
+            add_xi(bijie, "比劫帮身（身弱任官）")
+        elif status == "偏旺":
+            add_xi(cai, "财为相神（财生官，官星有源）")
+        else:
+            add_xi(yin, "印护官生身（中和之官格，印财两相）")
+            add_xi(cai, "财生官（中和之官格，印财两相）")
+        if _deity_present(pillars, day_gan, "伤官"):
+            add_ji(shi, "伤官", "伤官见官，为祸百端（官格最忌伤官破格）", True)
+        else:
+            add_ji(shi, "伤官", "伤官见官，为祸百端（岁运逢伤官须防破格）", False)
+        if _deity_present(pillars, day_gan, "七杀"):
+            add_ji(guan, "七杀", "官杀混杂（去杀留官方清）", True)
+        else:
+            add_ji(guan, "七杀", "官杀混杂（岁运逢七杀须防混局）", False)
+        if status == "偏弱" and (_deity_present(pillars, day_gan, "正财") or _deity_present(pillars, day_gan, "偏财")):
+            add_ji(cai, "财", "财滋官杀（身弱财生官杀，耗身加重）", True)
+        add_yao(yin, "印制伤官而护官（伤官为病，印为药）")
+
+    # ---------------- 七杀格 ----------------
+    elif pattern_name == "七杀格":
+        add_yong(guan, "七杀", "月令立格之神（七杀为用，须制化）")
+        if status == "偏弱":
+            add_xi(yin, "杀印相生（印化杀生身，身弱用印）")
+            add_xi(bijie, "比劫帮身（身弱任杀）")
+            # 身弱杀重：财党杀为病
+            if _deity_present(pillars, day_gan, "正财") or _deity_present(pillars, day_gan, "偏财"):
+                add_ji(cai, "财", "财滋弱杀（财党杀，杀更攻身）", True)
+            else:
+                add_ji(cai, "财", "财滋弱杀（岁运逢财须防党杀）", False)
+        else:
+            add_xi(shi, "食神制杀（身强杀浅，食制为贵）")
+            add_xi(cai, "财滋杀（身强杀浅，财生杀为贵）")
+            # 身强杀浅：财为喜不作忌；杀重无制、财党杀之戒见诸岁运复核
+        if _deity_present(pillars, day_gan, "正官"):
+            add_ji(guan, "正官", "官杀混杂（杀格忌官来混）", True)
+        else:
+            add_ji(guan, "正官", "官杀混杂（岁运逢正官须防混局）", False)
+        if status == "偏弱" and not (
+            _deity_present(pillars, day_gan, "正印") or _deity_present(pillars, day_gan, "食神")
+        ):
+            add_ji(guan, "七杀", "杀重身轻，无制无化（大运须防杀攻身）", False)
+        add_yao(yin, "印化杀生身（杀为病，印为药）")
+        add_yao(shi, "食神制杀（杀为病，食为药）")
+
+    # ---------------- 财格（正财 / 偏财） ----------------
+    elif pattern_name in ("正财格", "偏财格"):
+        add_yong(cai, "财", "月令立格之神（财为用）")
+        if status == "偏弱":
+            add_xi(bijie, "比劫帮身任财（财多身弱，富屋贫人，须帮身）")
+            add_xi(yin, "印星生身（身弱任财）")
+            add_ji(cai, "财", "财多身弱（富屋贫人，财反为病）", True)
+            if _deity_present(pillars, day_gan, "正官") or _deity_present(pillars, day_gan, "七杀"):
+                add_ji(guan, "官杀", "官杀泄财攻身（身弱财生官杀，日主不胜）", True)
+            if _deity_present(pillars, day_gan, "食神") or _deity_present(pillars, day_gan, "伤官"):
+                add_ji(shi, "食伤", "食伤泄身生财（身弱愈泄愈弱）", True)
+            add_yao(bijie, "比劫制财帮身（财多身弱之病，比劫为药）")
+            add_yao(yin, "印星生身（财多身弱之病，印亦为药）")
+        else:
+            add_xi(shi, "食伤生财（财有源头）")
+            add_xi(guan, "官星护财（身强财格，官护财不被劫）")
+            if _deity_present(pillars, day_gan, "比肩") or _deity_present(pillars, day_gan, "劫财"):
+                add_ji(bijie, "比劫", "比劫夺财（身强逢比劫分财，破格）", True)
+            else:
+                add_ji(bijie, "比劫", "比劫夺财（岁运逢比劫须防分财）", False)
+            add_yao(shi, "食伤化比劫而生财（比劫夺财之病，食伤为药）")
+            add_yao(guan, "官星制比劫而护财（比劫夺财之病，官亦为药）")
+
+    # ---------------- 印格（正印 / 偏印） ----------------
+    elif pattern_name in ("正印格", "偏印格"):
+        add_yong(yin, "印", "月令立格之神（印为用）")
+        if status == "偏旺":
+            add_xi(cai, "财星破印（印旺身强，喜财坏印为用）")
+            add_xi(shi, "食伤泄秀（印旺身强，食伤泄身生财）")
+            add_ji(yin, "印", "印旺为病（印重身强，印反为忌，喜财破印）", True)
+            add_yao(cai, "财星破印（印旺为病，财为药）")
+            add_yao(shi, "食伤泄秀生财（印旺为病，食伤亦为药）")
+        else:
+            add_xi(guan, "官印相生（官杀生印，印再生身）")
+            add_xi(bijie, "比劫帮身（印格身弱喜助）")
+            if _deity_present(pillars, day_gan, "正财") or _deity_present(pillars, day_gan, "偏财"):
+                add_ji(cai, "财", "财星坏印（印为用，财破之）", True)
+            else:
+                add_ji(cai, "财", "财星坏印（岁运逢财须防破印）", False)
+            if _deity_present(pillars, day_gan, "食神") or _deity_present(pillars, day_gan, "伤官"):
+                add_ji(shi, "食伤", "食伤泄身耗印（身弱印格，忌泄）", True)
+            add_yao(bijie, "比劫制财护印（财坏印之病，比劫为药）")
+        if pattern_name == "偏印格" and _deity_present(pillars, day_gan, "食神"):
+            add_ji(yin, "偏印", "枭神夺食（偏印夺食为病）", True)
+            add_yao(cai, "财制枭护食（枭神夺食之病，财为药）")
+
+    # ---------------- 食神格 ----------------
+    elif pattern_name == "食神格":
+        add_yong(shi, "食神", "月令立格之神（食神为用）")
+        if status == "偏弱":
+            add_xi(yin, "食神配印（身弱食神泄身，喜印制食生身）")
+            add_xi(bijie, "比劫帮身")
+            add_ji(shi, "食神", "食多泄身（身弱食神泄身太过）", True)
+            add_yao(yin, "印制食生身（食多泄身之病，印为药）")
+        else:
+            add_xi(cai, "食神生财（食神为用，喜财流通）")
+            if _deity_present(pillars, day_gan, "偏印"):
+                add_ji(yin, "偏印", "枭神夺食（食神为用，枭印夺之）", True)
+            else:
+                add_ji(yin, "偏印", "枭神夺食（岁运逢枭印须防夺食）", False)
+            add_yao(cai, "财制枭护食（枭神夺食之病，财为药）")
+
+    # ---------------- 伤官格 ----------------
+    elif pattern_name == "伤官格":
+        add_yong(shi, "伤官", "月令立格之神（伤官为用）")
+        if status == "偏弱":
+            add_xi(yin, "伤官配印（身弱伤官泄身，喜印止泄生身）")
+            add_xi(bijie, "比劫帮身")
+            add_ji(shi, "伤官", "伤官泄身太过（身弱伤官为病）", True)
+            if _deity_present(pillars, day_gan, "正财") or _deity_present(pillars, day_gan, "偏财"):
+                add_ji(cai, "财", "伤官生财泄身（身弱愈泄愈弱）", True)
+            add_yao(yin, "印制伤生身（伤官泄身之病，印为药）")
+        else:
+            add_xi(cai, "伤官生财（身强伤官，喜财流通）")
+            if _deity_present(pillars, day_gan, "正官"):
+                add_ji(guan, "正官", "伤官见官，为祸百端（伤官格忌正官破格）", True)
+            else:
+                add_ji(guan, "正官", "伤官见官，为祸百端（岁运逢正官须防破格）", False)
+            add_yao(yin, "印制伤护官（伤官见官之病，佩印为解）")
+
+    # ---------------- 兜底：常规格但无专属规则（不应发生） ----------------
     else:
-        climate = (None, f"{season}令不设机械调候单字，结合寒暖燥湿复核")
+        add_yong(pattern_element, selected["deity"], "以月令立格之神为用")
+        add_xi(yin if status == "偏弱" else shi, "中和之局，兼顾格局成败与日主平衡")
+
+    # 喜用神候选（兼容旧口径 fuyi，供卡牌/加点建议取用）：用神 + 相神喜神 之五行，去重
+    fuyi = []
+    for e, d, r in yongshen:
+        if not any(x == e for x, _ in fuyi):
+            fuyi.append((e, r))
+    for e, r in xishen:
+        if not any(x == e for x, _ in fuyi):
+            fuyi.append((e, r))
+    if not fuyi:
+        fuyi = [(day_element, "日主同气，兼顾全局复核")]
+
+    # 调候（《穷通宝鉴》简表，按日主五行 × 季节）
+    season = SEASON_BY_BRANCH[month_branch]
+    climate = CLIMATE_TABLE[day_element][season]
+    climate = (
+        climate[0],
+        f"{climate[1]}（简表参考，仍须按日主阴阳、干支组合与格局复核；调候为辅，不夺格局喜忌）",
+    )
+
+    clash_note = _month_clash_note(pillars, month_branch)
+    notes = []
+    if clash_note:
+        notes.append(clash_note)
+    notes.append("身强身弱仅作格局内部选相参考，不以强弱笼统定喜忌；忌神为破格之病神，药神为制病之神，均须结合合冲制化与大运复核。")
 
     return {
+        "method": "子平法（以月令格局为纲）",
+        "pattern_name": pattern_name,
         "pattern_stem": selected["stem"],
         "pattern_deity": selected["deity"],
-        "pattern_element": GAN_WX[selected["stem"]],
+        "pattern_element": pattern_element,
+        "yongshen": yongshen,
+        "xishen": xishen,
+        "jishen": jishen,
+        "yaoshen": yaoshen,
         "fuyi": fuyi,
         "climate": climate,
+        "note": "；".join(notes),
     }
 
 
@@ -547,18 +891,22 @@ def main():
         + ("；".join(pattern_analysis["special_candidates"]) if pattern_analysis["special_candidates"] else "未触发从格、专旺或合化候选")
     )
 
-    print("\n【喜用神建议】(格局 / 扶抑 / 调候分列)")
-    print(
-        f"  格局用神(月令义): {use_gods['pattern_stem']}({use_gods['pattern_deity']}, "
-        f"{use_gods['pattern_element']}) —— 对应 {selected['pattern']}候选"
-    )
-    print(
-        "  扶抑喜神候选: "
-        + "；".join(f"{element}({reason})" for element, reason in use_gods["fuyi"])
-    )
+    print("\n【喜用神与忌神】(子平法：格局为纲，分列 用神/相神喜神/忌神病神/药神/调候)")
+    yong_text = "；".join(f"{e}({d}: {r})" for e, d, r in use_gods["yongshen"])
+    print(f"  格局用神: {yong_text} —— 对应 {selected['pattern']}")
+    xi_text = "；".join(f"{e}({r})" for e, r in use_gods["xishen"]) or "（相神与用神同气或已含于用神）"
+    print(f"  相神/喜神: {xi_text}")
+    ji_text = "；".join(
+        f"{item['element']}({item['deity']}: {item['reason']})"
+        + ("【实见于命局】" if item["present"] else "【岁运须防】")
+        for item in use_gods["jishen"]
+    ) or "未见明显破格病神"
+    print(f"  忌神(病神): {ji_text}")
+    yao_text = "；".join(f"{e}({r})" for e, r in use_gods["yaoshen"]) or "（无需制化，顺势为吉）"
+    print(f"  药神(制病): {yao_text}")
     climate_element, climate_reason = use_gods["climate"]
     print(f"  调候提示: {(climate_element + '，') if climate_element else ''}{climate_reason}")
-    print("  注: 三种口径不强行合并成唯一用神; 须结合格局成败、合冲制化及大运复核。")
+    print(f"  注: {use_gods['note']}")
 
     # 起大运
     print("\n【起大运】")
@@ -585,6 +933,20 @@ def main():
     print("  大运:  " + "   ".join(f"{a_}岁 {g}" for a_, g in zip(ages, seq)))
     dy_ss = [f"{g}({shishen(day_gan, g[0])})" for g in seq]
     print("  运神:  " + "  ".join(dy_ss))
+
+    # 大运喜忌（以运干五行为主标喜/忌/闲；运支须与命局合冲制化合参，此处只作初判）
+    xi_elements = [e for e, _ in use_gods["fuyi"]]
+    ji_elements = [item["element"] for item in use_gods["jishen"] if item["element"] not in xi_elements]
+    dy_marks = []
+    for g in seq:
+        wx = GAN_WX[g[0]]
+        if wx in xi_elements:
+            dy_marks.append(f"{g}({wx}·喜)")
+        elif wx in ji_elements:
+            dy_marks.append(f"{g}({wx}·忌)")
+        else:
+            dy_marks.append(f"{g}({wx}·闲)")
+    print("  运程喜忌: " + "  ".join(dy_marks) + "  (以运干五行初判，运支合冲制化须另复核)")
     print("=" * 46)
 
 

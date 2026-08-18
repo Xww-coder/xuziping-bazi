@@ -294,9 +294,9 @@ def _map_strength(status: str) -> str:
 
 
 def _map_pattern_type(pattern_analysis: dict) -> str:
-    """据已取格局判大类；建禄/月劫归禄刃，其余常规归正格。"""
+    """据已取格局判大类；建禄/月劫/羊刃归禄刃，其余常规归正格。"""
     selected = pattern_analysis["selected"]["pattern"]
-    if selected in ("建禄格", "月劫格"):
+    if selected in ("建禄格", "月劫格", "羊刃格"):
         return "禄刃格"
     if selected in ("专旺格", "从格", "化气格"):
         return selected
@@ -440,9 +440,13 @@ def build_image_prompt(card):
     lines.append(
         f"服饰：中国武侠风劲装长袍，{palette['main']}为主色调，{palette['aux']}纹饰，广袖飘逸，衣袂翻飞。"
     )
+    avoid_phrase = (
+        f"弱化忌神「{card['avoid_god']}」元素" if card["avoid_god"] != "无显著忌神"
+        else "不刻意强化任何忌神意象"
+    )
     lines.append(
         f"背景：玄幻氛围，深邃星空与流动云雾，{palette['imagery']}，"
-        f"融入喜用神「{card['useful_god']}」的意象，弱化忌神「{card['avoid_god']}」元素，梦幻强烈的光影特效。"
+        f"融入喜用神「{card['useful_god']}」的意象，{avoid_phrase}，梦幻强烈的光影特效。"
     )
     lines.append("风格：中国武侠玄幻游戏角色立绘，精致唯美，人物主体强化突出，高级质感。"
                  "不要任何文字，不要塔罗牌边框，不要占星符号，不要罗马数字。")
@@ -599,23 +603,55 @@ def _build_mood(card):
     )
 
 
+def _advice_line(card):
+    """子平法加点线：优先取相神/喜神（xishen），其次格局用神（fuyi），按五行归线。
+
+    归线：印→印线；日主同气→比劫线；我生→食伤线；我克→财线；克我→官杀线。
+    """
+    element = card["element"]
+    yin = paipan.source_element(element)
+    shi = paipan.SHENG[element]
+    cai = paipan.KE[element]
+    guan = paipan.controller_element(element)
+    candidates = card.get("xishen") or card.get("fuyi", [])
+    for e, _ in candidates:
+        if e == yin:
+            return "印"
+        if e == element:
+            return "比劫"
+        if e == shi:
+            return "食伤"
+        if e == cai:
+            return "财"
+        if e == guan:
+            return "官杀"
+    return "顺势"
+
+
+ADVICE_BY_LINE = {
+    "印": "多借助学习、长辈、贵人的力量，减少内耗",
+    "比劫": "善用朋友与团队的力量，主动争取支持",
+    "食伤": "专注创作与表达，把才华落地",
+    "财": "务实经营、把握机会，专注积累",
+    "官杀": "以目标为导向，用纪律和担当约束自己",
+    "顺势": "顺着喜用神方向，顺势而为",
+}
+
+POINTS_BY_LINE = {
+    "印": "优先点亮「传承之心」与「慧眼识机」：多读书、多拜师，善用长辈与贵人的力",
+    "比劫": "优先点亮「并肩之力」：善用朋友与团队，主动争取支持，别一个人扛",
+    "食伤": "优先点亮「创造之泉」与「破旧之刃」：把才华落到作品上，表达即修行",
+    "财": "优先点亮「实业之基」与「机遇之眼」：务实经营，稳稳接住每一个机会",
+    "官杀": "优先点亮「秩序光环」与「破阵之势」：以目标与纪律约束自己，压力会变成铠甲",
+    "顺势": "顺着喜用神的方向加点，把自己的优势放大",
+}
+
+
 def _build_advice(card):
-    """据扶抑喜神候选给 1 条行动建议。"""
-    fuyi = card.get("fuyi", [])
-    if not fuyi:
+    """据子平法喜用（相神优先）给 1 条行动建议。"""
+    if not (card.get("xishen") or card.get("fuyi")):
         return "结合格局成败与岁运，稳中求进"
-    _, reason = fuyi[0]
-    if "印" in reason:
-        return "多借助学习、长辈、贵人的力量，减少内耗"
-    if "比劫" in reason or "帮身" in reason:
-        return "善用朋友与团队的力量，主动争取支持"
-    if "食伤" in reason or "泄秀" in reason:
-        return "专注创作与表达，把才华落地"
-    if "财" in reason:
-        return "务实经营、把握机会，专注积累"
-    if "官杀" in reason or "制身" in reason:
-        return "以目标为导向，用纪律和担当约束自己"
-    return "顺着喜用神方向，顺势而为"
+    return ADVICE_BY_LINE[_advice_line(card)]
 
 
 def build_script(card, chapter_no):
@@ -661,23 +697,10 @@ def build_talents(card):
     )
     role_type, role_desc = STRENGTH_ROLE[card["body_strength"]]
 
-    fuyi = card.get("fuyi", [])
-    if not fuyi:
+    if not (card.get("xishen") or card.get("fuyi")):
         points = "把天赋点都投在本命技能上，把一件事做到极致"
     else:
-        _, reason = fuyi[0]
-        if "印" in reason:
-            points = "优先点亮「传承之心」与「慧眼识机」：多读书、多拜师，善用长辈与贵人的力"
-        elif "比劫" in reason or "帮身" in reason:
-            points = "优先点亮「并肩之力」：善用朋友与团队，主动争取支持，别一个人扛"
-        elif "食伤" in reason or "泄秀" in reason:
-            points = "优先点亮「创造之泉」与「破旧之刃」：把才华落到作品上，表达即修行"
-        elif "财" in reason:
-            points = "优先点亮「实业之基」与「机遇之眼」：务实经营，稳稳接住每一个机会"
-        elif "官杀" in reason or "制身" in reason:
-            points = "优先点亮「秩序光环」与「破阵之势」：以目标与纪律约束自己，压力会变成铠甲"
-        else:
-            points = "顺着喜用神的方向加点，把自己的优势放大"
+        points = POINTS_BY_LINE[_advice_line(card)]
 
     return {
         "deity": deity,
@@ -704,17 +727,29 @@ def build_card(chart, now=None):
     element = paipan.GAN_WX[day_gan]
     body_strength = _map_strength(day_analysis["status"])
     pattern = selected["pattern"]
-    # 喜用神合并：身强调候优先（环境矛盾最急），身弱扶抑优先（先保自身），中和两者兼顾
+    # 子平法喜忌合并：喜用 = 格局用神 + 相神/喜神五行（引擎输出，格局为纲）；
+    # 忌神 = 引擎判定的破格病神（五行级，剔除与喜用同气者，如官杀混杂不作五行忌）；
+    # 调候并入但不夺格局（身强调候置顶、中和附后、身弱不并）。
     useful_elements = [e for e, _ in use_gods["fuyi"]]
     climate_element = use_gods["climate"][0]
-    if climate_element and climate_element not in useful_elements:
+    ji_raw = [item["element"] for item in use_gods.get("jishen", [])]
+    ji_elements = []
+    for e in ji_raw:
+        if e not in useful_elements and e not in ji_elements:
+            ji_elements.append(e)
+    if climate_element and climate_element not in useful_elements and climate_element not in ji_elements:
         if body_strength == "身强":
             useful_elements = [climate_element] + useful_elements  # 调候置顶
         elif body_strength == "中和":
             useful_elements = useful_elements + [climate_element]  # 兼顾，附于其后
-        # 身弱：扶抑优先，调候字不并入（若恰为扶抑喜用则已在上方列表中）
+        # 身弱：格局喜用优先，调候字不并入（若恰为喜用则已在上方列表中）
     useful_god = "、".join(useful_elements)
-    avoid_god = "、".join(e for e in ALL_ELEMENTS if e not in useful_elements)
+    avoid_god = "、".join(ji_elements) if ji_elements else "无显著忌神"
+    jishen_detail = "；".join(
+        f"{item['element']}({item['deity']}：{item['reason']})"
+        + ("【实见】" if item["present"] else "【岁运防】")
+        for item in use_gods.get("jishen", [])
+    ) or "未见明显破格病神"
     current_decade, current_year, decade_idx = current_decade_and_year(chart, now)
     rank = _rarity_rank(chart)
     name, desc = RARITY_LEVELS[rank]
@@ -739,6 +774,8 @@ def build_card(chart, now=None):
         "ten_god_dominant": selected["deity"],
         "composite_demeanor": _composite_demeanor(pattern_analysis),
         "fuyi": use_gods["fuyi"],
+        "xishen": use_gods.get("xishen", []),
+        "jishen_detail": jishen_detail,
         "climate": use_gods["climate"],
         "day_gan": day_gan,
     }
@@ -790,6 +827,7 @@ def render_text(card):
         "",
         f"【身强弱与喜用神】",
         f"  {card['gender']} · {card['age']} 岁 ｜ {card['body_strength']} ｜ 喜用神: {card['useful_god']} ｜ 忌神: {card['avoid_god']}",
+        f"  忌神明细(病神): {card['jishen_detail']}",
         f"  调候提示: {card['climate'][0] + '（' + card['climate'][1] + '）' if card['climate'][0] else card['climate'][1]}",
         f"  格局大类: {card['pattern_type']} ｜ 主导十神: {card['ten_god_dominant']}",
         "",

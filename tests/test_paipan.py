@@ -126,9 +126,63 @@ class ZipingAnalysisTests(unittest.TestCase):
         pattern = paipan.analyze_pattern(self.sample_pillars, day_analysis)
         use_gods = paipan.analyze_use_gods(self.sample_pillars, day_analysis, pattern)
         self.assertEqual(day_analysis["status"], "偏弱")
+        # 子平法：格局用神为月令立格之神（正官格 → 庚金），列于 fuyi 之首
         self.assertEqual(use_gods["pattern_element"], "金")
-        self.assertEqual(use_gods["fuyi"][0][0], "水")
+        self.assertEqual(use_gods["pattern_name"], "正官格")
+        self.assertEqual(use_gods["yongshen"][0][0], "金")
+        self.assertEqual(use_gods["fuyi"][0][0], "金")
+        # 官格身弱：印为相神（水）、比劫帮身（木）列于喜神
+        self.assertIn("水", [e for e, _ in use_gods["fuyi"]])
+        self.assertIn("木", [e for e, _ in use_gods["fuyi"]])
+        # 忌神（病神）：伤官见官为实见病神；官杀混杂为十神级忌神
+        ji = {item["deity"]: item for item in use_gods["jishen"]}
+        self.assertIn("伤官", ji)
+        self.assertTrue(ji["伤官"]["present"])
+        self.assertEqual(ji["伤官"]["element"], "火")
+        self.assertIn("七杀", ji)
+        # 调候：夏木喜水润
         self.assertEqual(use_gods["climate"][0], "水")
+
+    def test_lu_ren_pattern_uses_cai_guan_shi_not_month_ling(self):
+        # 甲木生寅月 = 建禄格：不以月令立格，喜财官食伤，忌比劫
+        pillars = [
+            ("年", "己", "丑"), ("月", "丙", "寅"),
+            ("日", "甲", "子"), ("时", "丁", "卯"),
+        ]
+        day_analysis = paipan.analyze_day_master(pillars)
+        pattern = paipan.analyze_pattern(pillars, day_analysis)
+        self.assertEqual(pattern["selected"]["pattern"], "建禄格")
+        use_gods = paipan.analyze_use_gods(pillars, day_analysis, pattern)
+        self.assertIn("建禄格", use_gods["pattern_name"])
+        # 用神取透干财官食伤：己土正财透年干 → 建禄用财
+        self.assertIn("土", [e for e, _, _ in use_gods["yongshen"]])
+        # 相神：食伤生财（火）
+        self.assertIn("火", [e for e, _ in use_gods["fuyi"]])
+        # 忌：比劫（寅中甲木本气为禄，比劫分财为病）
+        self.assertTrue(any(item["deity"] == "比劫" for item in use_gods["jishen"]))
+
+    def test_yang_ren_pattern_detected(self):
+        # 甲木生卯月 = 羊刃格
+        pillars = [
+            ("年", "庚", "辰"), ("月", "己", "卯"),
+            ("日", "甲", "午"), ("时", "丙", "寅"),
+        ]
+        day_analysis = paipan.analyze_day_master(pillars)
+        pattern = paipan.analyze_pattern(pillars, day_analysis)
+        self.assertEqual(pattern["selected"]["pattern"], "羊刃格")
+
+    def test_guan_hun_za_is_ten_god_level_not_element_level(self):
+        # 官格见七杀：官杀同五行，忌神为十神级，不污染五行级喜用
+        pillars = [
+            ("年", "庚", "午"), ("月", "辛", "巳"),
+            ("日", "乙", "酉"), ("时", "庚", "辰"),
+        ]
+        day_analysis = paipan.analyze_day_master(pillars)
+        pattern = paipan.analyze_pattern(pillars, day_analysis)
+        use_gods = paipan.analyze_use_gods(pillars, day_analysis, pattern)
+        ji = {item["deity"]: item for item in use_gods["jishen"]}
+        self.assertIn("七杀", ji)
+        self.assertEqual(ji["七杀"]["element"], use_gods["pattern_element"])
 
     def test_branch_relations_are_exposed_without_forcing_transformation(self):
         relations = paipan.analyze_branch_relations(self.sample_pillars)
@@ -158,7 +212,8 @@ class ZipingAnalysisTests(unittest.TestCase):
         )
         self.assertIn("【五行分布】(仅统计出现, 不直接据此判旺衰)", result.stdout)
         self.assertIn("【月令透干与格局候选】", result.stdout)
-        self.assertIn("【喜用神建议】(格局 / 扶抑 / 调候分列)", result.stdout)
+        self.assertIn("【喜用神与忌神】(子平法：格局为纲", result.stdout)
+        self.assertIn("忌神(病神)", result.stdout)
         self.assertNotIn("日主粗断", result.stdout)
 
     def test_all_day_stems_and_month_branches_produce_structured_analysis(self):
